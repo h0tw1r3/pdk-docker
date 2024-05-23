@@ -4,10 +4,8 @@ require "open-uri"
 require "oga"
 
 UBUNTU_RELEASE = "jammy"
-NIGHTLIES_HOST = "https://nightlies.puppetlabs.com"
-PDK_NIGHTLIES_BASE = "#{NIGHTLIES_HOST}/apt/pool/#{UBUNTU_RELEASE}/puppet-tools/p/pdk"
-RELEASES_HOST = "https://apt.puppetlabs.com"
-PDK_RELEASES_BASE = "#{RELEASES_HOST}/pool/#{UBUNTU_RELEASE}/puppet-tools/p/pdk"
+PDK_NIGHTLIES_BASE = "https://nightlies.puppetlabs.com/apt/pool/#{UBUNTU_RELEASE}/puppet-nightly/p/pdk"
+PDK_RELEASES_BASE = "https://apt.puppetlabs.com/pool/#{UBUNTU_RELEASE}/puppet/p/pdk"
 PDK_RELEASE_PKG_REGEX = /^pdk_(?<version>\d+\.\d+\.\d+\.\d+)-1#{UBUNTU_RELEASE}_amd64/
 PDK_NIGHTLY_PKG_REGEX = /^pdk_(?<version>\d+\.\d+\.\d+\.\d+\..*)-1#{UBUNTU_RELEASE}_amd64/
 
