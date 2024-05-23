@@ -6,8 +6,8 @@ require "oga"
 UBUNTU_RELEASE = "jammy"
 PDK_NIGHTLIES_BASE = "https://nightlies.puppetlabs.com/apt/pool/#{UBUNTU_RELEASE}/puppet-nightly/p/pdk"
 PDK_RELEASES_BASE = "https://apt.puppetlabs.com/pool/#{UBUNTU_RELEASE}/puppet/p/pdk"
-PDK_RELEASE_PKG_REGEX = /^pdk_(?<version>\d+\.\d+\.\d+\.\d+)-1#{UBUNTU_RELEASE}_amd64/
-PDK_NIGHTLY_PKG_REGEX = /^pdk_(?<version>\d+\.\d+\.\d+\.\d+\..*)-1#{UBUNTU_RELEASE}_amd64/
+PDK_RELEASE_PKG_REGEX = /^pdk_(?<version>\d+\.\d+\.\d+\.\d+)-1#{UBUNTU_RELEASE}_(?<arch>[^\.]+)/
+PDK_NIGHTLY_PKG_REGEX = /^pdk_(?<version>\d+\.\d+\.\d+\.\d+\..*)-1#{UBUNTU_RELEASE}_(?<arch>[^\.]+)/
 
 def pdk_nightlies_html
   URI.parse("#{PDK_NIGHTLIES_BASE}/index_by_lastModified_reverse.html").read
@@ -29,6 +29,7 @@ def pdk_nightly_versions
       {
         :version => matches[:version],
         :released_at => Time.parse(el.parent.next_element.text),
+        :arch => matches[:arch],
         :href => "#{PDK_NIGHTLIES_BASE}/#{el['href']}",
         :type => "nightly",
       }
@@ -48,6 +49,7 @@ def pdk_release_versions
       {
         :version => matches[:version],
         :released_at => Time.parse(el.parent.next_element.text),
+        :arch => matches[:arch],
         :href => "#{PDK_RELEASES_BASE}/#{el['href']}",
         :type => "release",
       }
