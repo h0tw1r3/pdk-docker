@@ -12,52 +12,75 @@ jobs:
   main:
     runs-on: ubuntu-latest
     steps:
-      -
-        name: Set tag to nightly
-        if: endsWith(github.ref, '/main')
-        run: echo "TAG=nightly" >> $GITHUB_ENV
-      -
-        name: Set tag to stable or latest
-        if: endsWith(github.ref, '/stable')
-        run: echo "TAG=latest" >> $GITHUB_ENV
-      -
-        name: Set tag to git tag name
-        if: startsWith(github.ref, 'refs/tags/')
-        run: echo "TAG=${GITHUB_REF##*/}" >> $GITHUB_ENV
-      -
-        name: Checkout
-        uses: actions/checkout@v3
-      -
-        name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
-      -
-        name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-      -
-        name: Login to DockerHub
-        uses: docker/login-action@v2
+      - id: init
+        run: |
+          echo "registry=${{ vars.DOCKER_REGISTRY != '' && vars.DOCKER_REGISTRY || 'ghcr.io' }}" >> $GITHUB_OUTPUT
+          echo "registry_username=${{ vars.DOCKER_USERNAME != '' && vars.DOCKER_USERNAME || github.actor }}" >> $GITHUB_OUTPUT
+          echo "registry_password=${{ secrets.DOCKER_PASSWORD != '' && secrets.DOCKER_PASSWORD || secrets.GITHUB_TOKEN }}" >> $GITHUB_OUTPUT
+          echo "repository=${{ vars.DOCKER_REPOSITORY != '' && vars.DOCKER_REPOSITORY || github.repository }}" >> $GITHUB_OUTPUT
+          case "${{ github.ref }}" in
+            */main)
+              TAG="nightly" ;;
+            */stable)
+              TAG="latest" ;;
+            */refs/tags/*)
+              TAG="${GITHUB_REF##*/}" ;;
+            *)
+              echo "::error::failed to set docker tag for ${GITHUB_REF}"
+              exit 1 ;;
+          esac
+
+          {
+            echo 'tags<<EOF'
+            [[ "${{ github.repository_owner }}" == "puppetlabs" ]] && echo "${{ secrets.AWS_FORGE_ID }}.dkr.ecr.us-west-2.amazonaws.com/anubis:${TAG}"
+            echo "puppet/pdk:${TAG}"
+            echo 'EOF'
+          } >> $GITHUB_OUTPUT
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Containerd image store
+        # This step is currently needed to work-around a bug in multi-platform docker buildx
+        # https://github.com/docker/buildx/issues/59
+        uses: crazy-max/ghaction-setup-docker@v2
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-      -
-        name: Login to ECR
+          version: v24.0.6
+          daemon-config: '{ "features": { "containerd-snapshotter": true } }'
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ steps.init.outputs.registry }}
+          username: ${{ steps.init.outputs.registry_username }}
+          password: ${{ steps.init.outputs.registry_password }}
+
+      - name: Login to ECR
+        if: ${{ github.repository_owner == 'puppetlabs' }}
         id: login_ecr
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           registry: ${{ secrets.AWS_FORGE_ID }}.dkr.ecr.us-west-2.amazonaws.com
           username: ${{ secrets.AWS_ACCESS_KEY_ID }}
           password: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      -
-        name: Build and push PDK
+
+      - name: Build and push PDK
         id: docker_build_pdk
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v5
         with:
           context: .
+          load: true
           push: true
-          tags: |
-            ${{ secrets.AWS_FORGE_ID }}.dkr.ecr.us-west-2.amazonaws.com/anubis:${{ env.TAG }}
-            puppet/pdk:${{ env.TAG }}
-      -
-        name: Image digest
+          tags: ${{ steps.init.outputs.tags }}
+          provenance: ${{ contains(steps.init.outputs.registry, 'docker') }}
+          platforms: 'linux/amd64,linux/arm64/v8'
+
+      - name: Image digest
         run: |
           echo 'PDK: ${{ steps.docker_build_pdk.outputs.digest }}'
