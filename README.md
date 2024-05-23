@@ -22,18 +22,18 @@ and [https://github.com/puppetlabs/pdk](https://github.com/puppetlabs/pdk).
 
 ## How images are built
 
-The PDK docker images are currently based on a fairly minimal Ubuntu 18.04 image.
+The PDK docker images are currently based on a fairly minimal Ubuntu 22.04 image.
 From there, a PDK `.deb` package is installed. Since there is a lag time between
 when changes are merged to the `puppetlabs/pdk` or `puppetlabs/pdk-vanagon`
 Github repositories and when a `.deb` package with the changes is actually available,
 we can't trigger Docker Hub builds immediately on commit/tag to either of those
 repositories.
 
-Instead, we have configured a [periodic Jenkins job](https://jenkins-platform.delivery.puppetlabs.net/view/PDK/view/main/) (internal only right now, sorry)
+Instead, we have configured a [periodic Jenkins job](https://jenkins-platform.delivery.puppetlabs.net/view/PDK/view/all/job/platform_pdk-docker-promotion_pdk-docker-promote_main/) (internal only right now, sorry)
 which runs the `update-pdk-release-file.rb` script in this repo and then checks to see
 if that resulted in any changes to the `pdk-release.env` file. This file contains
 environment variables which indicate what the most recent PDK release package available
-on the  [Puppet nightlies](http://nightlies.puppet.com/apt/pool/bionic/puppet/p/pdk/)
+on the  [Puppet nightlies](http://nightlies.puppet.com/apt/pool/jammy/puppet-nightly/p/pdk/)
 server is. `pdk-release.env` is then used by the `Dockerfile` (via `install-pdk-release.sh`)
 to build an image containing the specified release package.
 
