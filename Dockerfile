@@ -12,10 +12,9 @@ RUN passwd -d root && \
     chmod a+rwx /cache
 
 RUN apt-get update && \
-    apt-get install -y curl openssh-client && \
+    apt-get install -y openssh-client && \
     ./install-pdk-release.sh && \
     ./install-onceover.sh && \
-    apt-get purge -y curl && \
     apt-get autoremove -y && \
     rm -rf /var/lib/apt/lists/*
 
