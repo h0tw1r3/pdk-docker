@@ -1,0 +1,70 @@
+---
+name: Tag
+run-name: ${{ format('version={0}', inputs.version) }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "deb package version"
+        required: true
+        type: string
+
+jobs:
+  image:
+    runs-on: "ubuntu-latest"
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          clean: true
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: 3.2
+          bundler-cache: true
+
+      - name: Check package is published
+        id: find
+        env:
+          TAG: ${{ inputs.version }}
+        run: |
+          set -o pipefail
+          bundle exec ruby find-pdk-package.rb | tee find.json
+          echo "version=$( jq -r .version < find.json )" >> $GITHUB_OUTPUT
+          {
+            echo "result<<EOD"
+            cat find.json
+            echo "EOD"
+          } >> $GITHUB_OUTPUT
+
+      - name: Config git
+        run: |
+          git config --global user.email "${{ github.repository_owner }}@users.noreply.github.com"
+          git config --global user.name "Github Actions"
+
+      - name: Tag
+        env:
+          TAG: ${{ inputs.version }}
+          PKG_VERSION: ${{ steps.find.outputs.version }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # check if package version is already tagged
+          if git show-ref --tags "refs/tags/${PKG_VERSION}" ; then
+            echo "::error::Tag ${PKG_VERSION} already exists"
+            exit 1
+          fi
+
+          # move lightweight latest or nightly tag
+          if [[ "${TAG}" != "${PKG_VERSION}" ]] ; then
+            git tag -f "${TAG}"
+            git push origin -f "refs/tags/${TAG}"
+          fi
+
+          # tag release
+          git tag -a -F find.json "${PKG_VERSION}"
+          git push origin "refs/tags/${PKG_VERSION}"
