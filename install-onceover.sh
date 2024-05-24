@@ -2,7 +2,8 @@
 
 set +x
 
-pdk_ruby_bindir="$(dirname "$(ls -dr /opt/puppetlabs/pdk/private/ruby/*/bin/gem | head -1)")"
-
-"${pdk_ruby_bindir}/gem" install --no-document onceover
-ln -s "${pdk_ruby_bindir}/onceover" /usr/local/bin/onceover
+for gembin in /opt/puppetlabs/pdk/private/ruby/*/bin/gem ; do
+    cd $(dirname "$gembin") || continue
+    ./gem install --no-document onceover
+    ln -sf "$PWD/onceover" /usr/local/bin/onceover
+done
